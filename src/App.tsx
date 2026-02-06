@@ -1,35 +1,61 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useActionState } from "react";
+import "./App.css";
+import type { Task } from "./types";
+import axios from "axios";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [state, formAction, isPending] = useActionState(createTodo, null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [submitDisabled, setSubmitDisabled] = useState(false);
+
+  async function createTodo(_: unknown, formData: FormData) {
+    const taskName = formData.get("taskName");
+    const completed = formData.get("completed");
+
+    try {
+      await axios.post("/api/tasks", {
+        name: taskName,
+        completed: completed === "on",
+      });
+      setTasks((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          name: taskName as string,
+          completed: completed === "on",
+        },
+      ]);
+    } catch (e) {
+      console.error("Error creating todo", e);
+    }
+  }
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <form action={formAction}>
+        <label htmlFor="taskName">Task Name</label>
+        <input id="taskName" name="taskName" aria-required="true" required />
+        <label htmlFor="completed">Completed</label>
+        <input
+          id="completed"
+          name="completed"
+          type="checkbox"
+          aria-required="true"
+          required
+        />
+        <input type="submit" disabled={isPending || submitDisabled} />
+        {isPending && <p>Loading...</p>}
+      </form>
+
+      <ol>
+        {tasks.map((task) => (
+          <li key={task.id}>
+            {task.name} {task.completed ? "(Completed)" : "(Pending)"}
+          </li>
+        ))}
+      </ol>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
